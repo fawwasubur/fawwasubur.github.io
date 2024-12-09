@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Puzzle Pahlawan</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #f4f4f4;
+      margin: 0;
+      height: 100vh;
+      position: relative;
+      background: linear-gradient(135deg, #f5deb3, #ffeb99); /* Gradasi cokelat muda ke kuning */
+    }
+    h1 {
+      margin-bottom: 10px;
+      text-align: center;
+      color: #333;
+    }
+    .timer {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 18px;
+      color: #333;
+      background: #fff;
+      padding: 5px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .score {
+      margin-bottom: 20px;
+      font-size: 18px;
+      color: #555;
+    }
+    .puzzle-container {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 5px;
+      margin-bottom: 20px;
+    }
+    .puzzle-piece {
+      width: 100px;
+      height: 100px;
+      background-size: 300px 300px;
+      border: 1px solid #ccc;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      user-select: none;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  
+    /* Modal styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+    }
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 1001;
+      text-align: center;
+    }
+    .modal h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    .modal p {
+      font-size: 18px;
+      margin: 20px 0;
+    }
+    .modal button {
+      margin-top: 20px;
+    }
+  </style>
+  
+</head>
+<body>
+  <div class="timer" id="timer">Waktu: 30 detik</div>
+  <h1>Game Puzzle</h1>
+  <div class="score">Poin: <span id="score">0</span></div>
+  <div class="puzzle-container" id="puzzle-container"></div>
+
+  <!-- Modal untuk menampilkan skor akhir -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h2>Selamat!</h2>
+      <p>Anda telah menyelesaikan semua puzzle!</p>
+      <p>Total Skor Anda: <span id="finalScore">0</span></p>
+      <button onclick="restartGame()">Main Lagi</button>
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById("puzzle-container");
+    const scoreDisplay = document.getElementById("score");
+    const timerDisplay = document.getElementById("timer");
+    const modalOverlay = document.getElementById("modalOverlay");
+    const finalScoreDisplay = document.getElementById("finalScore");
+
+    const puzzleImages = ["img/img1.jpeg", "img/im2.webp", "img/img3.webp", "img/img4.jpg"];
+    let currentImageIndex = 0;
+    let pieces = Array.from({ length: 9 }, (_, index) => index);
+    let score = 0;
+    let startTime;
+    let timer;
+    let timeLeft = 30;
+
+    function drawPuzzle() {
+      container.innerHTML = "";
+      pieces.forEach((piece, index) => {
+        const div = document.createElement("div");
+        div.className = "puzzle-piece";
+        const x = (piece % 3) * 100;
+        const y = Math.floor(piece / 3) * 100;
+        div.style.backgroundImage = `url(${puzzleImages[currentImageIndex]})`;
+        div.style.backgroundPosition = `-${x}px -${y}px`;
+        div.dataset.index = index;
+
+        div.draggable = true;
+        div.addEventListener("dragstart", handleDragStart);
+        div.addEventListener("dragover", handleDragOver);
+        div.addEventListener("drop", handleDrop);
+
+        container.appendChild(div);
+      });
+    }
+
+    let draggedElement = null;
+
+    function handleDragStart(event) {
+      draggedElement = event.target;
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+    }
+
+    function handleDrop(event) {
+      const targetElement = event.target;
+      const draggedIndex = parseInt(draggedElement.dataset.index, 10);
+      const targetIndex = parseInt(targetElement.dataset.index, 10);
+
+      [pieces[draggedIndex], pieces[targetIndex]] = [pieces[targetIndex], pieces[draggedIndex]];
+      drawPuzzle();
+      checkWin();
+    }
+
+    function checkWin() {
+      if (pieces.every((piece, index) => piece === index)) {
+        clearInterval(timer);
+        const endTime = new Date().getTime();
+        const timeTaken = Math.floor((endTime - startTime) / 1000);
+        const pointsEarned = Math.max(100 - timeTaken, 10);
+
+        score += pointsEarned;
+        scoreDisplay.textContent = score;
+
+        if (currentImageIndex < puzzleImages.length - 1) {
+          currentImageIndex++;
+          startGame();
+        } else {
+          // Tampilkan modal dengan skor akhir
+          finalScoreDisplay.textContent = score;
+          modalOverlay.style.display = "block";
+        }
+      }
+    }
+
+    function shuffle() {
+      do {
+        shuffleArray(pieces);
+      } while (pieces.every((piece, index) => piece === index));
+      drawPuzzle();
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function startGame() {
+      pieces = Array.from({ length: 9 }, (_, index) => index);
+      shuffle();
+      startTime = new Date().getTime();
+      timeLeft = 30;
+      updateTimer();
+      clearInterval(timer);
+      timer = setInterval(countDown, 1000);
+    }
+
+    function countDown() {
+      if (timeLeft > 0) {
+        timeLeft--;
+        updateTimer();
+      } else {
+        clearInterval(timer);
+        if (currentImageIndex < puzzleImages.length - 1) {
+          alert("Waktu habis! Lanjut ke puzzle berikutnya.");
+          currentImageIndex++;
+          startGame();
+        } else {
+          finalScoreDisplay.textContent = score;
+          modalOverlay.style.display = "block";
+        }
+      }
+    }
+
+    function updateTimer() {
+      timerDisplay.textContent = `Waktu: ${timeLeft} detik`;
+    }
+
+    function restartGame() {
+      modalOverlay.style.display = "none";
+      currentImageIndex = 0;
+      score = 0;
+      scoreDisplay.textContent = "0";
+      startGame();
+    }
+
+    startGame();
+  </script>
+</body>
+</html>
